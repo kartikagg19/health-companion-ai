@@ -74,13 +74,13 @@ function describeChatError(error: unknown): string {
     status === 403 ||
     /authentication|unauthorized|invalid api key/i.test(text)
   ) {
-    return "The AI provider rejected the credentials. Check that AI_GATEWAY_API_KEY is set correctly in your environment variables.";
+    return "Google rejected the API key. Check that GEMINI_API_KEY is set correctly in your environment variables.";
   }
   if (status === 429 || /rate limit|too many requests/i.test(text)) {
     return "I'm getting a lot of requests right now — please try again in a moment.";
   }
   if (status === 402 || /insufficient|credit|quota|billing|payment|spend limit/i.test(text)) {
-    return `Your AI Gateway account is out of credit, or billing isn't set up. Add a payment method or credits in the Vercel dashboard under AI Gateway. (${text})`;
+    return `Your Gemini API quota is exhausted. Check usage and limits in Google AI Studio. (${text})`;
   }
   if (status === 404 || /not found|unknown model|unsupported model/i.test(text)) {
     return `The configured model isn't available to your account. Check AI_MODEL. (${text})`;

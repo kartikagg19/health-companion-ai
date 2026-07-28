@@ -53,23 +53,23 @@ All required packages are listed in `requirements.txt` for reference.
 
 ### 3. Configure Environment Variables
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` and fill in your key:
 
 ```env
-# Required — Vercel AI Gateway key (https://vercel.com/[team]/~/ai/api-keys)
-AI_GATEWAY_API_KEY=your_key_here
+# Required — Google Gemini API key (https://aistudio.google.com/apikey)
+GEMINI_API_KEY=your_key_here
 
-# Optional — override the model (default: google/gemini-3.6-flash)
-# AI_MODEL=google/gemini-3.6-flash
+# Optional — override the model (default: gemini-3.6-flash)
+# AI_MODEL=gemini-3.6-flash
 
-# Optional — use a custom OpenAI-compatible endpoint instead of the gateway.
+# Optional — use a custom OpenAI-compatible endpoint instead of Gemini.
 # If set, AI_API_KEY is required and AI_MODEL must be a model that host serves.
 # AI_BASE_URL=https://api.openai.com/v1
 # AI_API_KEY=sk-...
 ```
 
-> When deployed on Vercel, the gateway can authenticate automatically via OIDC,
-> in which case `AI_GATEWAY_API_KEY` is optional.
+> `.env` is gitignored. Never commit real keys — a key pushed to a public repo
+> stays in git history even after deletion and must be rotated.
 
 ### 4. Start the Development Server
 ```bash
@@ -119,7 +119,7 @@ Open your browser at `http://localhost:3000`
 
 This app supports SSR via TanStack Start + Vite Nitro. You can deploy to:
 
-- **Vercel** — connect your GitHub repo and set `AI_GATEWAY_API_KEY` in environment variables
+- **Vercel** — connect your GitHub repo and set `GEMINI_API_KEY` in environment variables
 - **Netlify** — same process via site environment variables
 - **Node.js Server** — run `npm run build` then serve the output
 
