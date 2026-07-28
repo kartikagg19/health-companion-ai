@@ -17,14 +17,14 @@ import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
-} from "@/components/ai-elements/conversation";
-import { Message, MessageContent } from "@/components/ai-elements/message";
+} from "@/components/chat/conversation";
+import { Message, MessageContent } from "@/components/chat/message";
 import {
   PromptInput,
   PromptInputFooter,
   PromptInputSubmit,
   PromptInputTextarea,
-} from "@/components/ai-elements/prompt-input";
+} from "@/components/chat/prompt-input";
 import { Button } from "@/components/ui/button";
 import curaLogo from "@/assets/cura-logo.png";
 

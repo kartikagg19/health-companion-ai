@@ -1,4 +1,4 @@
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createAiProvider } from "@/lib/ai-provider.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
@@ -37,14 +37,17 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const key = process.env.LOVABLE_API_KEY;
+        const key =
+          process.env.AI_API_KEY ||
+          process.env.GEMINI_API_KEY ||
+          process.env.OPENAI_API_KEY;
         if (!key) {
-          return new Response("Missing LOVABLE_API_KEY", { status: 500 });
+          return new Response("Missing AI API Key", { status: 500 });
         }
 
-        const gateway = createLovableAiGatewayProvider(key);
+        const provider = createAiProvider(key);
         const result = streamText({
-          model: gateway("google/gemini-3.6-flash"),
+          model: provider("google/gemini-3.6-flash"),
           system: SYSTEM_PROMPT,
           messages: await convertToModelMessages(messages as UIMessage[]),
         });
@@ -58,7 +61,7 @@ export const Route = createFileRoute("/api/chat")({
               return "I'm getting a lot of requests right now — please try again in a moment.";
             }
             if (msg.includes("402")) {
-              return "AI credits are exhausted. Please add credits in your Lovable workspace to continue.";
+              return "AI credits or service quota exhausted. Please check your API key configuration.";
             }
             return "Something went wrong generating a response. Please try again.";
           },
