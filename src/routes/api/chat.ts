@@ -28,6 +28,66 @@ Only include a brief disclaimer (one short sentence) when the question is medica
 
 type ChatRequestBody = { messages?: unknown };
 
+/**
+ * Pulls the useful text out of an AI SDK / gateway error. The top-level
+ * `message` is often generic, with the real cause nested in `cause`,
+ * `responseBody`, or `data`, so collect whatever is present.
+ */
+function extractErrorDetail(error: unknown): { text: string; status?: number } {
+  const parts: string[] = [];
+  let status: number | undefined;
+  let current: unknown = error;
+
+  for (let depth = 0; current && depth < 4; depth++) {
+    if (typeof current === "string") {
+      parts.push(current);
+      break;
+    }
+    if (typeof current !== "object") break;
+
+    const e = current as Record<string, unknown>;
+    if (typeof e.message === "string") parts.push(e.message);
+    if (typeof e.responseBody === "string") parts.push(e.responseBody);
+    if (typeof e.statusCode === "number") status ??= e.statusCode;
+    if (typeof e.status === "number") status ??= e.status;
+    if (e.data && typeof e.data === "object") {
+      parts.push(JSON.stringify(e.data));
+    }
+    current = e.cause;
+  }
+
+  const text = [...new Set(parts)].join(" | ").slice(0, 600);
+  return { text: text || "Unknown error", status };
+}
+
+/**
+ * Maps a streaming failure to text shown in the chat. Known cases get friendly
+ * wording; anything unrecognised still reports the underlying message rather
+ * than hiding it behind a generic string, so misconfiguration stays debuggable.
+ */
+function describeChatError(error: unknown): string {
+  const { text, status } = extractErrorDetail(error);
+  console.error("chat stream error", { status, detail: text, error });
+
+  if (
+    status === 401 ||
+    status === 403 ||
+    /authentication|unauthorized|invalid api key/i.test(text)
+  ) {
+    return "The AI provider rejected the credentials. Check that AI_GATEWAY_API_KEY is set correctly in your environment variables.";
+  }
+  if (status === 429 || /rate limit|too many requests/i.test(text)) {
+    return "I'm getting a lot of requests right now — please try again in a moment.";
+  }
+  if (status === 402 || /insufficient|credit|quota|billing|payment|spend limit/i.test(text)) {
+    return `Your AI Gateway account is out of credit, or billing isn't set up. Add a payment method or credits in the Vercel dashboard under AI Gateway. (${text})`;
+  }
+  if (status === 404 || /not found|unknown model|unsupported model/i.test(text)) {
+    return `The configured model isn't available to your account. Check AI_MODEL. (${text})`;
+  }
+  return `Something went wrong generating a response. (${text})`;
+}
+
 export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
@@ -56,23 +116,7 @@ export const Route = createFileRoute("/api/chat")({
 
         return result.toUIMessageStreamResponse({
           originalMessages: messages as UIMessage[],
-          onError: (error) => {
-            console.error("chat stream error", error);
-            const msg = error instanceof Error ? error.message : String(error);
-            if (/authentication|unauthorized|401|api key/i.test(msg)) {
-              return "The AI provider rejected the request — no valid credentials. Set AI_GATEWAY_API_KEY in your environment variables.";
-            }
-            if (msg.includes("429")) {
-              return "I'm getting a lot of requests right now — please try again in a moment.";
-            }
-            if (msg.includes("402")) {
-              return "AI credits or service quota exhausted. Please check your API key configuration.";
-            }
-            if (/not found|404|model/i.test(msg)) {
-              return `The configured model is unavailable. Check the AI_MODEL setting. (${msg})`;
-            }
-            return "Something went wrong generating a response. Please try again.";
-          },
+          onError: (error) => describeChatError(error),
         });
       },
     },
