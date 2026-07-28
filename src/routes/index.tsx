@@ -73,6 +73,15 @@ function loadInitial(): UIMessage[] {
 }
 
 function HomePage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return <div className="min-h-screen bg-background" />;
+  }
+  return <ChatApp />;
+}
+
+function ChatApp() {
   const [initial] = useState<UIMessage[]>(loadInitial);
 
   const { messages, sendMessage, status, setMessages, stop } = useChat({
@@ -81,6 +90,7 @@ function HomePage() {
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     onError: (err) => console.error("useChat error", err),
   });
+
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [input, setInput] = useState("");
