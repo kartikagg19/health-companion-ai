@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   Activity,
+  AlertCircle,
   Apple,
   HeartPulse,
   Leaf,
@@ -84,13 +85,20 @@ function HomePage() {
 function ChatApp() {
   const [initial] = useState<UIMessage[]>(loadInitial);
 
-  const { messages, sendMessage, status, setMessages, stop } = useChat({
-    id: "cura-main",
-    messages: initial,
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
-    onError: (err) => console.error("useChat error", err),
-  });
+  const { messages, sendMessage, status, setMessages, stop, error, clearError, regenerate } =
+    useChat({
+      id: "cura-main",
+      messages: initial,
+      transport: new DefaultChatTransport({ api: "/api/chat" }),
+      onError: (err) => console.error("useChat error", err),
+    });
 
+  // The failed user message is already in `messages`, so retry by regenerating
+  // the response rather than re-sending the text (which would duplicate it).
+  const retry = async () => {
+    clearError();
+    await regenerate();
+  };
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [input, setInput] = useState("");
@@ -147,11 +155,10 @@ function ChatApp() {
               {showEmpty ? (
                 <EmptyState onPick={sendSuggestion} disabled={isBusy} />
               ) : (
-                messages.map((m) => (
-                  <ChatBubble key={m.id} message={m} />
-                ))
+                messages.map((m) => <ChatBubble key={m.id} message={m} />)
               )}
               {status === "submitted" && <ThinkingBubble />}
+              {error && <ErrorNotice error={error} onRetry={retry} />}
             </ConversationContent>
             <ConversationScrollButton />
           </Conversation>
@@ -185,22 +192,16 @@ function ChatApp() {
         </div>
 
         <p className="mt-3 text-center text-xs text-muted-foreground">
-          Cura is an AI companion for general wellness information. For medical
-          concerns, please consult a licensed healthcare professional. In an
-          emergency, call your local emergency number.
+          Cura is an AI companion for general wellness information. For medical concerns, please
+          consult a licensed healthcare professional. In an emergency, call your local emergency
+          number.
         </p>
       </main>
     </div>
   );
 }
 
-function Header({
-  onReset,
-  hasMessages,
-}: {
-  onReset: () => void;
-  hasMessages: boolean;
-}) {
+function Header({ onReset, hasMessages }: { onReset: () => void; hasMessages: boolean }) {
   return (
     <header className="border-b border-border bg-[var(--surface)]/80 backdrop-blur">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3 sm:px-6">
@@ -209,12 +210,8 @@ function Header({
             <img src={curaLogo} alt="Cura" className="h-6 w-6" />
           </div>
           <div className="leading-tight">
-            <h1 className="font-display text-lg font-semibold text-foreground">
-              Cura
-            </h1>
-            <p className="text-[11px] text-muted-foreground">
-              Your everyday healthcare companion
-            </p>
+            <h1 className="font-display text-lg font-semibold text-foreground">Cura</h1>
+            <p className="text-[11px] text-muted-foreground">Your everyday healthcare companion</p>
           </div>
         </div>
         {hasMessages && (
@@ -233,13 +230,7 @@ function Header({
   );
 }
 
-function EmptyState({
-  onPick,
-  disabled,
-}: {
-  onPick: (text: string) => void;
-  disabled: boolean;
-}) {
+function EmptyState({ onPick, disabled }: { onPick: (text: string) => void; disabled: boolean }) {
   return (
     <div className="flex flex-col items-center gap-6 py-6 text-center">
       <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20">
@@ -250,9 +241,8 @@ function EmptyState({
           How are you feeling today?
         </h2>
         <p className="mx-auto max-w-md text-sm text-muted-foreground">
-          I'm Cura — ask me about symptoms, nutrition, healthy habits, or
-          basic first-aid. I'll keep it clear and honest, and point you to a
-          professional when it matters.
+          I'm Cura — ask me about symptoms, nutrition, healthy habits, or basic first-aid. I'll keep
+          it clear and honest, and point you to a professional when it matters.
         </p>
       </div>
 
@@ -282,9 +272,7 @@ function EmptyState({
 }
 
 function ChatBubble({ message }: { message: UIMessage }) {
-  const text = message.parts
-    .map((p) => (p.type === "text" ? p.text : ""))
-    .join("");
+  const text = message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 
   const isUser = message.role === "user";
 
@@ -307,6 +295,27 @@ function ChatBubble({ message }: { message: UIMessage }) {
         <ReactMarkdown>{text || "…"}</ReactMarkdown>
       </MessageContent>
     </Message>
+  );
+}
+
+function ErrorNotice({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-sm"
+    >
+      <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-destructive" />
+      <div className="min-w-0 flex-1 space-y-1.5">
+        <p className="font-medium text-foreground">Couldn't get a response</p>
+        <p className="break-words text-xs text-muted-foreground">
+          {error.message || "The request failed. Please try again."}
+        </p>
+        <Button variant="outline" size="sm" onClick={onRetry} className="mt-1 h-7 text-xs">
+          <RotateCcw className="mr-1.5 h-3 w-3" />
+          Try again
+        </Button>
+      </div>
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-import { createAiProvider } from "@/lib/ai-provider.server";
+import { resolveChatModel } from "@/lib/ai-provider.server";
 import { createFileRoute } from "@tanstack/react-router";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
 
@@ -37,17 +37,19 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const key =
-          process.env.AI_API_KEY ||
-          process.env.GEMINI_API_KEY ||
-          process.env.OPENAI_API_KEY;
-        if (!key) {
-          return new Response("Missing AI API Key", { status: 500 });
+        let model;
+        try {
+          model = resolveChatModel();
+        } catch (error) {
+          console.error("chat config error", error);
+          return new Response(
+            error instanceof Error ? error.message : "AI provider misconfigured",
+            { status: 500 },
+          );
         }
 
-        const provider = createAiProvider(key);
         const result = streamText({
-          model: provider("google/gemini-3.6-flash"),
+          model,
           system: SYSTEM_PROMPT,
           messages: await convertToModelMessages(messages as UIMessage[]),
         });
@@ -57,11 +59,17 @@ export const Route = createFileRoute("/api/chat")({
           onError: (error) => {
             console.error("chat stream error", error);
             const msg = error instanceof Error ? error.message : String(error);
+            if (/authentication|unauthorized|401|api key/i.test(msg)) {
+              return "The AI provider rejected the request — no valid credentials. Set AI_GATEWAY_API_KEY in your environment variables.";
+            }
             if (msg.includes("429")) {
               return "I'm getting a lot of requests right now — please try again in a moment.";
             }
             if (msg.includes("402")) {
               return "AI credits or service quota exhausted. Please check your API key configuration.";
+            }
+            if (/not found|404|model/i.test(msg)) {
+              return `The configured model is unavailable. Check the AI_MODEL setting. (${msg})`;
             }
             return "Something went wrong generating a response. Please try again.";
           },

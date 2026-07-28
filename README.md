@@ -56,12 +56,20 @@ All required packages are listed in `requirements.txt` for reference.
 Create a `.env` file in the project root:
 
 ```env
-# Required — your AI provider API key
-AI_API_KEY=your_api_key_here
+# Required — Vercel AI Gateway key (https://vercel.com/[team]/~/ai/api-keys)
+AI_GATEWAY_API_KEY=your_key_here
 
-# Optional — override default AI gateway endpoint
+# Optional — override the model (default: google/gemini-3.6-flash)
+# AI_MODEL=google/gemini-3.6-flash
+
+# Optional — use a custom OpenAI-compatible endpoint instead of the gateway.
+# If set, AI_API_KEY is required and AI_MODEL must be a model that host serves.
 # AI_BASE_URL=https://api.openai.com/v1
+# AI_API_KEY=sk-...
 ```
+
+> When deployed on Vercel, the gateway can authenticate automatically via OIDC,
+> in which case `AI_GATEWAY_API_KEY` is optional.
 
 ### 4. Start the Development Server
 ```bash
@@ -111,7 +119,7 @@ Open your browser at `http://localhost:3000`
 
 This app supports SSR via TanStack Start + Vite Nitro. You can deploy to:
 
-- **Vercel** — connect your GitHub repo and set `AI_API_KEY` in environment variables
+- **Vercel** — connect your GitHub repo and set `AI_GATEWAY_API_KEY` in environment variables
 - **Netlify** — same process via site environment variables
 - **Node.js Server** — run `npm run build` then serve the output
 
